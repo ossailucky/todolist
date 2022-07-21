@@ -1,5 +1,6 @@
 import express from "express"
 import bodyParser from "body-parser"
+import getDate from "./date.js";
 
 const app = express();
 
@@ -14,15 +15,8 @@ app.use(express.static("public"))
 
 app.get("/",(req,res)=>{
 
-  let today = new Date();
-  const options = {
-    weekday: "long",
-    day: "numeric",
-    month: "long"
-  }
-
-  let day = today.toLocaleDateString("en-US", options);
-
+  let day = getDate();
+  
   res.render("list", {listTitle: day, newListItems: listItem});
 })
 

@@ -1,7 +1,7 @@
 import express from "express";
-import bodyParser from "body-parser"
+import bodyParser from "body-parser";
 import mongoose from "mongoose";
-import e from "express";
+import _ from "lodash";
 
 const app = express();
 
@@ -26,7 +26,12 @@ const item3 = new Item({name: "Eat Food"});
 
 const defaultItems = [item1, item2, item3];
 
+const listSchema = {
+  name: String,
+  items : [itemsSchema]
+};
 
+const List = mongoose.model("List", listSchema);
 
 
 app.get("/",(req,res)=>{
@@ -50,36 +55,78 @@ app.get("/",(req,res)=>{
   
 });
 
+app.get("/:customListName", (req,res)=>{
+     const customListName = _.capitalize(req.params.customListName)
+    List.findOne({name: customListName}, (err,foundList)=>{
+      if(!err){
+        if(!foundList){
+          //Create a new list
+          const list = new List({
+            name: customListName,
+            items: defaultItems
+           });
+      
+           list.save();
+           res.redirect(`/${customListName}`)
+        }else{
+          //Show an existing list
+          res.render("list", {listTitle: foundList.name, newListItems: foundList.items});
+        }
+      }
+    })
+    
+});
+
 
 app.post("/", (request,response)=>{
 
   const itemName = request.body.newItem;
+  const listName = request.body.list;
 
   const newItem = new Item({name:itemName});
 
-  newItem.save()
+  if(listName === "Today"){
+    newItem.save()
 
-  response.redirect("/");
+    response.redirect("/");
+  }else{
+    List.findOne({name: listName}, (err,foundList)=>{
+      foundList.items.push(newItem);
+      foundList.save();
+      response.redirect(`/${listName}`)
+    })
+  }
+
+  
   
 });
 
 app.post("/delete",(req,res)=>{
     const checkItemId = req.body.checkbox;
+    const listName = req.body.listName;
 
-    Item.findByIdAndRemove(checkItemId, (err)=>{
-      if(err){
-        console.log(err)
-      }else{
-        console.log("Item deleted Sucessfully")
-      }
-    })
+    if(listName === "Today"){
+      Item.findByIdAndRemove(checkItemId, (err)=>{
+        if(err){
+          console.log(err);
+        }else{
+          console.log("Item deleted Sucessfully")
+        }
+      });
+  
+      res.redirect("/");
+    }else{
+        List.findOneAndUpdate({name: listName},{ $pull: {items: {_id: checkItemId}}},(err,foundList)=>{
+          if(!err){
+            res.redirect(`/${listName}`)
+          }
+        })
+    }
 
-    res.redirect("/")
+    
 });
 
-app.get("/work",(req,res)=>{
-    res.render("list", {listTitle: "Work List", newListItems: workItems});
-})
+
 
 
 
